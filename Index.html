@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard Aset & Persediaan</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--navy:#1e3a8a;--teal:#0e7490}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,#1e3a8a,#0e7490);color:#fff;padding:22px 28px}
+header h1{margin:0;font-size:24px}header p{margin:4px 0 0;opacity:.85;font-size:13px}
+main{max-width:1280px;margin:0 auto;padding:18px}
+#drop{border:2px dashed #94a3b8;background:#fff;border-radius:16px;padding:26px;text-align:center;cursor:pointer;transition:.2s}
+#drop.on,#drop:hover{border-color:var(--navy);background:#eff6ff}#drop b{font-size:17px}#drop small{display:block;color:var(--mut);margin-top:6px}
+#st{margin:10px 2px;font-size:13px;color:var(--mut)}#st span{background:#dcfce7;color:#166534;border-radius:20px;padding:3px 10px;margin-right:6px;font-weight:600}
+.tabs{display:flex;gap:8px;margin:14px 0}.tabs button{border:0;padding:10px 20px;border-radius:12px;background:#e2e8f0;font-weight:600;cursor:pointer;font-size:14px}
+.tabs button.on{background:var(--navy);color:#fff}
+.bar{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px #0001;margin-bottom:14px}
+.bar label{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;display:block;margin:2px 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer;font-weight:600}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}.chip i{font-style:normal;opacity:.7;margin-left:6px;font-weight:400}
+.row{display:flex;gap:12px;flex-wrap:wrap}input,select{border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;min-width:200px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+.k{background:var(--card);border-radius:14px;padding:16px;border-left:6px solid var(--c);box-shadow:0 1px 3px #0001}
+.k small{color:var(--mut);font-size:11px;font-weight:700;text-transform:uppercase}.k b{display:block;font-size:28px;color:var(--c);margin:4px 0}.k em{font-size:11px;color:var(--mut)}
+.g2{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:14px}@media(max-width:850px){.g2{grid-template-columns:1fr}}
+.pn{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 1px 3px #0001}.pn h3{margin:0 0 8px;font-size:14px}
+.cv{position:relative;height:320px}
+.tw{overflow:auto;max-height:560px}table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{position:sticky;top:0;background:#f8fafc;text-align:left;padding:9px 8px;border-bottom:2px solid var(--line);font-size:11px;text-transform:uppercase;color:var(--mut)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}tr:hover td{background:#f8fafc}.r{text-align:right;white-space:nowrap}
+.bd{display:inline-block;padding:3px 9px;border-radius:999px;font-weight:700;font-size:11px;color:#fff;white-space:nowrap}
+.more{display:block;margin:12px auto 0;border:0;background:var(--navy);color:#fff;padding:9px 22px;border-radius:10px;cursor:pointer;font-weight:600}
+.note{font-size:12px;color:var(--mut);margin:8px 2px}.hide{display:none}
+</style></head><body>
+<header><h1>Dashboard Aset & Persediaan</h1><p>Masukkan file Excel Anda — diproses langsung di browser, data tidak dikirim ke mana pun.</p></header>
+<main>
+<div id="drop"><b>📂 Klik atau seret file Excel ke sini</b><small>Pilih sekaligus: <u>Asset & Invent 2026 (.xlsx)</u> dan <u>Stock Opname (.xlsx)</u> — jenis file dikenali otomatis</small>
+<input id="fi" type="file" accept=".xlsx,.xlsm,.xls" multiple hidden></div>
+<div id="st"></div>
+<div id="app" class="hide">
+<div class="tabs"><button data-t="A" class="on">🏗️ Aset & Inventaris</button><button data-t="S">📦 Persediaan</button><button data-t="K">🔗 Keterkaitan</button></div>
+
+<section id="vA"><div class="bar"><label>Hasil Pengecekan Fisik</label><div class="chips" id="cH"></div>
+<div class="row"><div><label>Kelompok Aset</label><select id="sK"></select></div><div><label>Cari</label><input id="qA" placeholder="jenis, kode, spesifikasi, lokasi…"></div></div></div>
+<div class="kpis" id="kA"></div>
+<div class="g2"><div class="pn"><h3>Komposisi hasil pengecekan</h3><div class="cv"><canvas id="c1"></canvas></div></div>
+<div class="pn"><h3>Jumlah aset per sub-kelompok</h3><div class="cv"><canvas id="c2"></canvas></div></div></div>
+<div class="pn"><h3>Daftar aset <small style="font-weight:400;color:var(--mut)">— urut nilai perolehan terbesar</small></h3><div class="tw"><table id="tA"></table></div><button class="more" id="mA">Tampilkan 30 lagi</button></div></section>
+
+<section id="vS" class="hide"><div class="bar"><label>Gudang</label><div class="chips" id="cG"></div><label>Klasifikasi</label><div class="chips" id="cC"></div>
+<div class="row"><div><label>Cari</label><input id="qS" placeholder="nama item, spesifikasi, kode…"></div></div></div>
+<div class="kpis" id="kS"></div>
+<div class="g2"><div class="pn"><h3>Nilai persediaan per kelompok barang</h3><div class="cv"><canvas id="c3"></canvas></div></div>
+<div class="pn"><h3>Nilai per klasifikasi & gudang</h3><div class="cv"><canvas id="c4"></canvas></div></div></div>
+<div class="pn"><h3>Daftar item <small style="font-weight:400;color:var(--mut)">— urut nilai terbesar</small></h3><div class="tw"><table id="tS"></table></div><button class="more" id="mS">Tampilkan 30 lagi</button></div></section>
+
+<section id="vK" class="hide"><div class="pn"><h3>Apakah data Aset & Persediaan saling berkaitan?</h3>
+<p class="note" style="font-size:13px">Tidak ada kode penghubung antar file, tetapi alurnya nyambung: barang tahan lama dibeli lewat gudang (masuk) → dikeluarkan ke user (keluar) → dicatat sebagai inventaris tahun perolehan 2026. Pencocokan dilakukan lewat nama + spesifikasi.</p>
+<div class="tw"><table id="tK"></table></div></div></section>
+</div></main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf=n=>Math.round(n).toLocaleString('id-ID'),dec=(n,d)=>n.toLocaleString('id-ID',{maximumFractionDigits:d});
+const rp=n=>n>=1e9?'Rp '+dec(n/1e9,2)+' M':n>=1e6?'Rp '+dec(n/1e6,1)+' jt':'Rp '+nf(n);
+const title=s=>String(s).trim().toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+const COL={'Baik, Produktif':'#16a34a','Rusak, Tidak Produktif':'#f97316','Rusak, Non Produktif':'#dc2626','Rusak, Produktif':'#eab308'},SEK=['TANAH & BANGUNAN','ALAT BERAT','KENDARAAN','PERABOT KANTOR'];
+const KL={'Fast Moving':'#16a34a','Slow Moving':'#f97316','Security Part':'#2563eb'},GN={WHS1:'WHS1 · Biringkassi',WHS2:'WHS2 · Palu'};
+let A=[],S=[],fa={h:'Semua',k:'Semua',q:''},fs={g:'Semua',c:'Semua',q:''},na=30,ns=30;const ch={};
+function chart(id,cfg){ch[id]&&ch[id].destroy();cfg.options={...cfg.options,maintainAspectRatio:false};ch[id]=new Chart($('#'+id),cfg)}
+function parseAset(ws){const R=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});const hi=R.findIndex(r=>r.some(c=>String(c).trim()==='HASIL PENGECEKAN FISIK'));let sek=null,sub=null,o=[];
+ for(let i=hi+2;i<R.length;i++){const r=R[i],j=r[1],kb=r[3],h=r[14];
+  if(kb==null&&j!=null&&h==null){const t=String(j).trim().toUpperCase();if(SEK.includes(t)){sek=t;sub=null}else sub=t;continue}
+  if(kb==null)continue;
+  o.push({sek,sub:sub||sek,jenis:String(j??'').trim(),kode:String(kb).trim(),spek:r[4]??'',thn:parseInt(r[7])||null,nilai:+r[9]||0,lok:r[13]??'',hasil:h?title(h):'-'})}
+ return o}
+function parseStok(ws){const R=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});const hi=R.findIndex(r=>r.includes('INV_GROUP'));const H=R[hi],ix=n=>H.indexOf(n);
+ return R.slice(hi+1).filter(r=>r[ix('INV_GROUP')]).map(r=>({kel:r[ix('GROUP_NAME')],kode:r[ix('ITEM_CODE')],nama:String(r[ix('ITEM_NAME')]??'').trim(),desc:r[ix('ITEM_DESC')]??'',uom:r[ix('UOM')],whs:r[ix('WHS_CODE')]||'-',masuk:+r[ix('QTY_MASUK')]||0,keluar:+r[ix('QTY_KELUAR')]||0,akhir:+r[ix('STOCK_AKHIR')]||0,total:+r[ix('TOTAL_HARGA')]||0,umur:r[ix('UMUR')]??'',kl:r[ix('KLASIFIKASI')]||'-'}))}
+async function load(files){const msg=[];
+ for(const f of files){let wb;try{wb=XLSX.read(await f.arrayBuffer(),{type:'array'})}catch(e){msg.push('❌ '+f.name+' gagal dibaca');continue}
+  const ca=[],cs=[];
+  for(const n of wb.SheetNames){const t=JSON.stringify(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:null,range:'A1:Z10'}));
+   if(t.includes('HASIL PENGECEKAN FISIK'))ca.push(n);if(t.includes('INV_GROUP'))cs.push(n)}
+  if(ca.length){const n=ca.find(x=>/september/i.test(x))||ca[0];A=parseAset(wb.Sheets[n]);msg.push(`<span>Aset: ${nf(A.length)} baris</span>${esc(f.name)} (sheet ${esc(n)})`)}
+  else if(cs.length){S=parseStok(wb.Sheets[cs[0]]);msg.push(`<span>Stok: ${nf(S.length)} item</span>${esc(f.name)}`)}
+  else msg.push('⚠️ '+esc(f.name)+': format tidak dikenali')}
+ $('#st').innerHTML=msg.join('<br>');if(A.length||S.length){$('#app').classList.remove('hide');init()}}
+function chips(el,opts,cur,cb){$(el).innerHTML=opts.map(([v,l,n])=>`<button class="chip ${v===cur?'on':''}" data-v="${esc(v)}">${esc(l)}<i>${n}</i></button>`).join('');
+ $(el).querySelectorAll('button').forEach(b=>b.onclick=()=>cb(b.dataset.v))}
+function init(){if(A.length){const ks=[...new Set(A.map(x=>x.sek))];$('#sK').innerHTML='<option>Semua</option>'+ks.map(k=>`<option>${esc(k)}</option>`).join('');fa={h:'Semua',k:'Semua',q:''}}
+ na=ns=30;fs={g:'Semua',c:'Semua',q:''};renderA();renderS();renderK()}
+function kpi(c,l,v,n){return `<div class="k" style="--c:${c}"><small>${l}</small><b>${v}</b><em>${n}</em></div>`}
+function renderA(){if(!A.length)return;const q=fa.q.toLowerCase(),base=A.filter(x=>(fa.k==='Semua'||x.sek===fa.k)&&(!q||(x.jenis+x.kode+x.spek+x.lok+x.sub).toLowerCase().includes(q)));
+ const cnt={};base.forEach(x=>cnt[x.hasil]=(cnt[x.hasil]||0)+1);
+ chips('#cH',[['Semua','Semua',base.length],...Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>[k,k,cnt[k]])],fa.h,v=>{fa.h=v;na=30;renderA()});
+ const d=base.filter(x=>fa.h==='Semua'||x.hasil===fa.h),tot=d.reduce((s,x)=>s+x.nilai,0),baik=cnt['Baik, Produktif']||0,rus=Object.keys(cnt).filter(k=>k.startsWith('Rusak')).reduce((s,k)=>s+cnt[k],0);
+ $('#kA').innerHTML=kpi('#1e3a8a','Aset tampil',nf(d.length),'sesuai filter')+kpi('#0e7490','Total nilai perolehan',rp(tot),'baris tanpa nilai tidak dihitung')+kpi('#16a34a','Baik, produktif',nf(baik),dec(baik/(base.length||1)*100,1)+'% dari kelompok')+kpi('#dc2626','Rusak (semua jenis)',nf(rus),dec(rus/(base.length||1)*100,1)+'% dari kelompok');
+ const ks=Object.keys(cnt);chart('c1',{type:'doughnut',data:{labels:ks,datasets:[{data:ks.map(k=>cnt[k]),backgroundColor:ks.map(k=>COL[k]||'#64748b')}]},options:{cutout:'62%',plugins:{legend:{position:'bottom'}}}});
+ const sc={};d.forEach(x=>sc[x.sub]=(sc[x.sub]||0)+1);const sk=Object.keys(sc).sort((a,b)=>sc[b]-sc[a]);
+ chart('c2',{type:'bar',data:{labels:sk,datasets:[{data:sk.map(k=>sc[k]),backgroundColor:'#1e3a8a',borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{y:{ticks:{font:{size:10}}}}}});
+ const rows=[...d].sort((a,b)=>b.nilai-a.nilai);
+ $('#tA').innerHTML='<tr><th>Sub-kelompok</th><th>Jenis harta</th><th>Kode</th><th>Spesifikasi</th><th>Tahun</th><th class="r">Nilai perolehan</th><th>Lokasi</th><th>Hasil</th></tr>'+rows.slice(0,na).map(x=>`<tr><td>${esc(x.sub)}</td><td>${esc(x.jenis)}</td><td>${esc(x.kode)}</td><td>${esc(x.spek)}</td><td>${x.thn??''}</td><td class="r">${x.nilai?nf(x.nilai):'–'}</td><td>${esc(x.lok)}</td><td><span class="bd" style="background:${COL[x.hasil]||'#64748b'}">${esc(x.hasil)}</span></td></tr>`).join('');
+ $('#mA').style.display=rows.length>na?'block':'none'}
+function renderS(){if(!S.length)return;const q=fs.q.toLowerCase(),m=x=>!q||(x.nama+x.desc+x.kode+x.kel).toLowerCase().includes(q);
+ const gs=[...new Set(S.map(x=>x.whs))].sort(),cs=[...new Set(S.map(x=>x.kl))].sort();
+ chips('#cG',[['Semua','Semua',S.filter(x=>fs.c==='Semua'||x.kl===fs.c).length],...gs.map(g=>[g,GN[g]||g,S.filter(x=>x.whs===g&&(fs.c==='Semua'||x.kl===fs.c)).length])],fs.g,v=>{fs.g=v;ns=30;renderS()});
+ chips('#cC',[['Semua','Semua',S.filter(x=>fs.g==='Semua'||x.whs===fs.g).length],...cs.map(c=>[c,c,S.filter(x=>x.kl===c&&(fs.g==='Semua'||x.whs===fs.g)).length])],fs.c,v=>{fs.c=v;ns=30;renderS()});
+ const d=S.filter(x=>(fs.g==='Semua'||x.whs===fs.g)&&(fs.c==='Semua'||x.kl===fs.c)&&m(x)),tot=d.reduce((s,x)=>s+x.total,0);
+ $('#kS').innerHTML=kpi('#0e7490','Item tampil',nf(d.length),'jenis barang')+kpi('#1e3a8a','Total nilai persediaan',rp(tot),'stok akhir × harga pokok')+kpi('#16a34a','Ada mutasi periode ini',nf(d.filter(x=>x.masuk>0||x.keluar>0).length),'masuk / keluar')+kpi('#dc2626','Stok akhir nol',nf(d.filter(x=>x.akhir===0).length),'perlu dicek / re-order');
+ const kv={};d.forEach(x=>kv[x.kel]=(kv[x.kel]||0)+x.total);const kk=Object.keys(kv).sort((a,b)=>kv[b]-kv[a]);
+ chart('c3',{type:'bar',data:{labels:kk,datasets:[{data:kk.map(k=>kv[k]/1e6),backgroundColor:'#0e7490',borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>dec(c.raw,1)+' jt'}}}}});
+ const kl=Object.keys(KL).filter(k=>cs.includes(k));
+ chart('c4',{type:'bar',data:{labels:kl,datasets:gs.map((g,i)=>({label:GN[g]||g,backgroundColor:['#0e7490','#f97316','#64748b'][i%3],borderRadius:4,data:kl.map(k=>S.filter(x=>x.whs===g&&x.kl===k&&(fs.g==='Semua'||x.whs===fs.g)&&m(x)).reduce((s,x)=>s+x.total,0)/1e6)}))},options:{plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+dec(c.raw,1)+' jt'}}}}});
+ const rows=[...d].sort((a,b)=>b.total-a.total);
+ $('#tS').innerHTML='<tr><th>Kode</th><th>Nama item</th><th>Spesifikasi</th><th>Gudang</th><th class="r">Stok akhir</th><th class="r">Total harga</th><th>Umur</th><th>Klasifikasi</th></tr>'+rows.slice(0,ns).map(x=>`<tr><td>${esc(x.kode)}</td><td>${esc(x.nama)}</td><td>${esc(x.desc)}</td><td>${esc(GN[x.whs]||x.whs)}</td><td class="r">${nf(x.akhir)} ${esc(x.uom)}</td><td class="r">${nf(x.total)}</td><td>${esc(x.umur)}</td><td><span class="bd" style="background:${KL[x.kl]||'#64748b'}">${esc(x.kl)}</span></td></tr>`).join('');
+ $('#mS').style.display=rows.length>ns?'block':'none'}
+function renderK(){if(!A.length||!S.length){$('#tK').innerHTML='<tr><td>Unggah <b>kedua file</b> (Aset & Stok) untuk melihat pencocokan.</td></tr>';return}
+ const T=[['Handy Talky Icom-V86',x=>/handy talky/i.test(x.nama)&&/v86/i.test(x.desc),x=>/handy talky/i.test(x.jenis)&&/v86/i.test(x.spek)],['TV LED LG',x=>/^tv led/i.test(x.nama)&&/lg/i.test(x.desc),x=>/^tv led/i.test(x.jenis)&&/lg/i.test(x.spek)]];
+ $('#tK').innerHTML='<tr><th>Barang</th><th class="r">Stok masuk</th><th class="r">Stok keluar</th><th class="r">Tercatat di Aset (thn 2026)</th><th class="r">Selisih</th></tr>'+T.map(([n,fs_,fa_])=>{const s=S.filter(fs_),k=s.reduce((a,x)=>a+x.keluar,0),a=A.filter(x=>fa_(x)&&x.thn===2026).length;
+  return `<tr><td>${n}</td><td class="r">${nf(s.reduce((a,x)=>a+x.masuk,0))}</td><td class="r">${nf(k)}</td><td class="r">${nf(a)}</td><td class="r"><span class="bd" style="background:${k===a?'#16a34a':'#f97316'}">${nf(k-a)}</span></td></tr>`}).join('')}
+// events
+const dz=$('#drop'),fi=$('#fi');dz.onclick=()=>fi.click();fi.onchange=()=>load(fi.files);
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};dz.ondragleave=()=>dz.classList.remove('on');dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');load(e.dataTransfer.files)};
+$('#sK').onchange=e=>{fa.k=e.target.value;na=30;renderA()};$('#qA').oninput=e=>{fa.q=e.target.value;na=30;renderA()};$('#qS').oninput=e=>{fs.q=e.target.value;ns=30;renderS()};
+$('#mA').onclick=()=>{na+=30;renderA()};$('#mS').onclick=()=>{ns+=30;renderS()};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));['A','S','K'].forEach(t=>$('#v'+t).classList.toggle('hide',t!==b.dataset.t))});
+</script></body></html>
